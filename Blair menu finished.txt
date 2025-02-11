@@ -1,0 +1,175 @@
+-- Blair Auto-Evidence, Night Vision & Auto-Objective Script with Toggle Menu
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Lighting = game:GetService("Lighting")
+local player = Players.LocalPlayer
+local gui = player:FindFirstChild("PlayerGui")
+
+local evidenceFound = {}
+local ghostType = "Unknown"
+local ghostRoom = "Unknown"
+local objectives = { "Find the Ghost Room", "Identify the Ghost", "Capture a Ghost Event", "Use the Spirit Box", "Get EMF Level 5", "Take a Photo of the Ghost" }
+
+-- Feature Toggles
+local settings = {
+    autoEvidence = false,
+    nightVision = false,
+    autoObjectives = false,
+    showHUD = false
+}
+
+-- Function to enable/disable night vision
+local function toggleNightVision(enabled)
+    if enabled then
+        Lighting.Brightness = 2
+        Lighting.FogEnd = 500
+        Lighting.Ambient = Color3.fromRGB(150, 150, 150)
+    else
+        Lighting.Brightness = 1
+        Lighting.FogEnd = 100
+        Lighting.Ambient = Color3.fromRGB(0, 0, 0)
+    end
+end
+
+-- Function to detect ghost evidence
+local function detectEvidence()
+    while settings.autoEvidence do
+        task.wait(1)
+        
+        if workspace:FindFirstChild("GhostOrbs") then
+            evidenceFound["Ghost Orbs"] = true
+        end
+        if workspace:FindFirstChild("GhostWriting") then
+            evidenceFound["Ghost Writing"] = true
+        end
+        if workspace:FindFirstChild("Fingerprints") then
+            evidenceFound["Fingerprints"] = true
+        end
+        if workspace:FindFirstChild("EMF5") then
+            evidenceFound["EMF Level 5"] = true
+        end
+        if workspace:FindFirstChild("SpiritBox") then
+            evidenceFound["Spirit Box"] = true
+        end
+        if workspace:FindFirstChild("FreezingTemps") then
+            evidenceFound["Freezing Temperatures"] = true
+        end
+
+        -- Determine Ghost Type based on evidence
+        if evidenceFound["Ghost Orbs"] and evidenceFound["Ghost Writing"] and evidenceFound["Freezing Temperatures"] then
+            ghostType = "Revenant"
+        elseif evidenceFound["EMF Level 5"] and evidenceFound["Fingerprints"] and evidenceFound["Ghost Writing"] then
+            ghostType = "Myling"
+        else
+            ghostType = "Unknown"
+        end
+    end
+end
+
+-- Function to find the ghost room
+local function detectGhostRoom()
+    while settings.autoEvidence do
+        for _, room in pairs(workspace:GetChildren()) do
+            if room:IsA("Model") and room:FindFirstChild("GhostActivity") then
+                ghostRoom = room.Name
+                break
+            end
+        end
+        task.wait(1)
+    end
+end
+
+-- Auto-Complete Objectives
+local function completeObjectives()
+    while settings.autoObjectives do
+        for _, obj in pairs(objectives) do
+            local objective = workspace:FindFirstChild(obj)
+            if objective then
+                objective.Value = true
+            end
+        end
+        task.wait(2)
+    end
+end
+
+-- UI with Movable HUD
+local function createMovableHUD()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Parent = gui
+
+    local frame = Instance.new("Frame")
+    frame.Parent = screenGui
+    frame.Size = UDim2.new(0.3, 0, 0.2, 0)
+    frame.Position = UDim2.new(0.35, 0, 0.1, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    frame.Active = true
+    frame.Draggable = true
+
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Parent = frame
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textLabel.TextScaled = true
+
+    while settings.showHUD do
+        textLabel.Text = "Ghost: " .. ghostType .. "\nRoom: " .. ghostRoom
+        task.wait(1)
+    end
+
+    frame:Destroy()
+end
+
+-- Movable Settings Menu
+local function createSettingsMenu()
+    local menuGui = Instance.new("ScreenGui")
+    menuGui.Parent = gui
+
+    local menuFrame = Instance.new("Frame")
+    menuFrame.Parent = menuGui
+    menuFrame.Size = UDim2.new(0.2, 0, 0.3, 0)
+    menuFrame.Position = UDim2.new(0.4, 0, 0.2, 0)
+    menuFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    menuFrame.Active = true
+    menuFrame.Draggable = true
+
+    local function createCheckbox(name, settingKey, yOffset)
+        local checkbox = Instance.new("TextButton")
+        checkbox.Parent = menuFrame
+        checkbox.Size = UDim2.new(0.8, 0, 0.1, 0)
+        checkbox.Position = UDim2.new(0.1, 0, yOffset, 0)
+        checkbox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        checkbox.TextColor3 = Color3.fromRGB(255, 255, 255)
+        checkbox.Text = name .. ": OFF"
+
+        checkbox.MouseButton1Click:Connect(function()
+            settings[settingKey] = not settings[settingKey]
+            checkbox.Text = name .. ": " .. (settings[settingKey] and "ON" or "OFF")
+
+            if settingKey == "nightVision" then
+                toggleNightVision(settings.nightVision)
+            elseif settingKey == "autoEvidence" then
+                if settings.autoEvidence then
+                    task.spawn(detectEvidence)
+                    task.spawn(detectGhostRoom)
+                end
+            elseif settingKey == "autoObjectives" then
+                if settings.autoObjectives then
+                    task.spawn(completeObjectives)
+                end
+            elseif settingKey == "showHUD" then
+                if settings.showHUD then
+                    task.spawn(createMovableHUD)
+                end
+            end
+        end)
+    end
+
+    createCheckbox("Auto-Evidence", "autoEvidence", 0.1)
+    createCheckbox("Night Vision", "nightVision", 0.25)
+    createCheckbox("Auto Objectives", "autoObjectives", 0.4)
+    createCheckbox("Show HUD", "showHUD", 0.55)
+end
+
+-- Run the Settings Menu
+createSettingsMenu()
